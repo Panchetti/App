@@ -4,15 +4,40 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as stats
 
-
-
 st.set_page_config(
     page_title="Option Pricing Models",
     layout="wide",
     initial_sidebar_state="expanded")
 
 st.title('Option Pricing Simulator')
-st.markdown("---")
+custom_css = """
+<style>
+.option-prices {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.option-price {
+    color: white;
+    background-color: black;
+    border: 2px solid white;
+    padding: 10px;
+    text-align: center;
+    text-decoration: underline;
+    font-size: 1.2em;
+    margin: 0 10px; /* Space between boxes */
+    width: 1500px; /* Set the width of the boxes */
+    height: 120px; /* Set the height of the boxes */
+    display: flex;
+    align-items: center; /* Center text vertically */
+    justify-content: center; /* Center text horizontally */
+}
+</style>
+"""
+
+# Add the CSS to your Streamlit app
+st.markdown(custom_css, unsafe_allow_html=True)
 
 class BlackScholes:
 
@@ -40,7 +65,7 @@ print(bsm.Black_Scholes_Call_Option())
 print(bsm.Black_Scholes_Put_Option())
 
 class Monte_Carlo:
-    def __init__(self,K,S_0,t,sigma,simulations,r=0.05):
+    def __init__(self,S_0,K,t,sigma,simulations,r=0.05):
         self.K = K
         self.S_0 = S_0
         self.t = t/365
@@ -70,24 +95,31 @@ class Monte_Carlo:
         if self.simulation_results_S is None:
             return -1
         else:
-            return np.exp(-self.r*self.t)*1/self.N*np.sum(np.maximum(self.simulation_results_S[-1]-self.K,0))
+            return np.exp(-self.r*self.t)/self.N*np.sum(np.maximum(self.simulation_results_S[-1]-self.K,0))
 
     def simulate_put(self):
         if self.simulation_results_S is None:
             return -1
         else:
-            return np.exp(-self.r*self.t)*1/self.N*np.sum(np.maximum(self.K-self.simulation_results_S[-1],0))
+            return np.exp(-self.r*self.t)/self.N*np.sum(np.maximum(self.K-self.simulation_results_S[-1],0))
 
     def plot_simulation_results(self, num_of_movements):
         """Plots specified number of simulated price movements."""
-        plt.figure(figsize=(12, 8))
-        plt.plot(self.simulation_results_S[:, 0:num_of_movements])
-        plt.axhline(self.K, c='k', xmin=0, xmax=self.num_steps, label='Strike Price')
-        plt.xlim([0, self.num_steps])
-        plt.ylabel('Simulated price movements')
-        plt.xlabel('Days in future')
-        plt.title(f'First {num_of_movements}/{self.N} Random Price Movements')
-        plt.legend(loc='best')
+        plt.figure(figsize=(12, 6))
+
+        for i in range(num_of_movements):
+            plt.plot(self.simulation_results_S[:, i], linestyle='-', color=f'C{i % 10}', alpha=0.7)
+
+        plt.axhline(self.K, linestyle='-', label='Strike Price', linewidth=2)
+        plt.title("Simulated Price Movements", fontsize=16, fontweight='bold')
+        plt.xlabel("Days in Future", fontsize=12)
+        plt.ylabel("Price", fontsize=12)
+        plt.grid(color='grey', linestyle='--', linewidth=0.5, alpha=0.7)
+        plt.xticks(fontsize=10)
+        plt.yticks(fontsize=10)
+        plt.legend(loc='best', fontsize=10)
+
+        plt.tight_layout()  # Adjust layout to make room for the labels
         plt.show()
 
 
@@ -146,42 +178,128 @@ class Binomial_Tree:
 
 
 
-choice = st.sidebar.selectbox("Method",['Black-Scholes','Monte Carlo','Binomial Tree'])
 
-S = st.sidebar.number_input("Spot Price ($)",value=100.00,min_value=0.00)
-K = st.sidebar.number_input("Strike Price ($)",value=100.00,min_value=0.00)
-sigma = st.sidebar.number_input("Volatility (σ)",value=0.20,min_value=0.00)
-t = st.sidebar.number_input("Days to expiration",value=100,min_value=0)
+with st.sidebar:
+    st.title("Option Pricing Models")
+    st.write("`Created by:`")
+    linkedin_url = "https://www.linkedin.com/in/kaloyan-panov-0734022a4/"
+    st.markdown(f'<a href="{linkedin_url}" target="_blank" style="text-decoration: none; color: inherit;"><img src="https://cdn-icons-png.flaticon.com/512/174/174857.png" width="25" height="25" style="vertical-align: middle; margin-right: 10px;">`Kaloyan Panov`</a>', unsafe_allow_html=True)
 
-r = st.sidebar.slider("Riskfree rate",min_value=0.0,max_value=0.10,step=0.01, value=0.05)
-df =pd.DataFrame([[choice,S,K,t,r,sigma]], columns=['Type','Spot price','Strike price ','days to expiration','Risk-free rate','Volatility'])
-st.table(df)
+    choice = st.sidebar.selectbox("Method", ['Black-Scholes', 'Monte Carlo', 'Binomial Tree'])
+    S = st.sidebar.number_input("Spot Price ($)",value=100.00,min_value=0.00)
+    K = st.sidebar.number_input("Strike Price ($)",value=100.00,min_value=0.00)
+    sigma = st.sidebar.number_input("Volatility (σ)",value=0.20,min_value=0.00)
+    t = st.sidebar.number_input("Days to expiration",value=100,min_value=0)
+    r = st.sidebar.slider("Riskfree rate",min_value=0.0,max_value=0.10,step=0.01, value=0.05)
+    Put_price = 0.00
+    Call_price = 0.00
+    df =pd.DataFrame([[choice,float(S),float(K),t,r,sigma]], columns=['Type','Spot price','Strike price ','days to expiration','Risk-free rate','Volatility'])
+    if choice == "Black-Scholes":
+        calculate = st.sidebar.button('Simulate Prices')
+
+df['Risk-Free rate'] = df['Risk-free rate'].map("{:.2f}".format)
+df['Volatility'] = df['Volatility'].map("{:.2f}".format)
+df['Spot price'] = df['Spot price'].map("{:.2f}".format)
+df['Strike price '] = df['Strike price '].map("{:.2f}".format)
+html = df.to_html(index=False, escape=False)
+
+st.markdown(
+    f'<div style="overflow-x:auto; text-align: center; width :100%;">{html}</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown("---")
+(st.subheader("Option Price"))
 
 
 
-if choice == 'Black-Scholes':
+if choice == 'Black-Scholes' and  calculate == True:
 
     bsm = BlackScholes(S,K,t,sigma,r)
-    call_option_bs = bsm.Black_Scholes_Call_Option()
-    put_option_bs = bsm.Black_Scholes_Put_Option()
+    Call_price = bsm.Black_Scholes_Call_Option()
+    Put_price = bsm.Black_Scholes_Put_Option()
 
 if choice == 'Monte Carlo':
 
-    simulations = st.sidebar.number_input("Simulations",value=100,min_value=0)
-    mc = Monte_Carlo(S,K,t,sigma,simulations,r)
-    mc.simulate_prices()
-    mc_call_option = mc.simulate_call()
-    mc_put_option = mc.simulate_put()
-    st.markdown("---")
-    st.subheader("Random Walk")
-    st.pyplot(mc.plot_simulation_results(100),clear_figure=False)
+    simulations = st.sidebar.number_input("Simulations", value=100, min_value=0)
+    calculate = st.sidebar.button('Simulate Prices')
+    mc = Monte_Carlo(S, K, t, sigma, simulations, r)
+
+
+    if calculate == True:
+
+        mc.simulate_prices()
+        Call_price = mc.simulate_call()
+        Put_price = mc.simulate_put()
+
+
+
 
 if choice == 'Binomial Tree':
 
     steps = st.sidebar.number_input("Number of steps",value=100,min_value=0)
-    bt = Binomial_Tree(S,K,t,sigma,steps,r)
-    bt_call_option = bt.BT_Call_Option()
-    bt_put_option = bt.BT_Put_Option()
+    calculate = st.sidebar.button('Simulate Prices')
+
+    if calculate == True:
+
+        bt = Binomial_Tree(S,K,t,sigma,steps,r)
+        Call_price = bt.BT_Call_Option()
+        Put_price = bt.BT_Put_Option()
 
 
 
+st.markdown(
+            f"<div class='option-prices'>"
+            f"<div class='option-price'>Call Option Price: ${float(Call_price):.3f}</div>"
+            f"<div class='option-price'>Put Option Price: ${float(Put_price):.3f}</div>"
+            "</div>", unsafe_allow_html=True
+        )
+
+st.markdown('---')
+st.subheader("P&L Scenario")
+pnl_df = pd.DataFrame(0,columns=['-30%', '-20%', '-10%', '0%', '10%', '20%', '30%'],
+                       index=['Underlying', 'Call PnL', 'Put PnL'])
+# Populate the DataFrame
+if calculate == True:
+    for i, scen in enumerate(range(-30, 31, 10)):
+        # Calculate the new price based on the percentage change
+        new_price = S * (1 + scen / 100)
+
+        # Calculate Call PnL
+        call_pnl = (max(new_price - K, 0) - Call_price)*100
+        # Calculate Put PnL
+        put_pnl = (max(K - new_price, 0) - Put_price)*100
+
+        # Set values in the DataFrame
+        pnl_df.iloc[0, i] = new_price  # Underlying price
+        pnl_df.iloc[1, i] = call_pnl  # Call PnL
+        pnl_df.iloc[2, i] = put_pnl
+
+
+st.table(pnl_df)
+
+
+
+# Prepare data for the line charts
+call_pnl_data = pnl_df.loc['Call PnL'].astype(float)
+put_pnl_data = pnl_df.loc['Put PnL'].astype(float)
+
+# Reorder the data
+ordered_indices = ['-30%', '-20%', '-10%', '0%', '10%', '20%', '30%']
+call_pnl_data = call_pnl_data[ordered_indices].reset_index(drop=True)
+put_pnl_data = put_pnl_data[ordered_indices].reset_index(drop=True)
+
+# Create side-by-side columns for the line charts
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader('Call Option Profit and Loss')
+    st.line_chart(call_pnl_data)
+
+with col2:
+    st.subheader('Put Option Profit and Loss')
+    st.line_chart(put_pnl_data)
+if choice == 'Monte Carlo' and calculate == True:
+    st.markdown("---")
+    st.subheader("Random Walk")
+    st.pyplot(mc.plot_simulation_results(100), clear_figure=False)
