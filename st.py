@@ -266,9 +266,9 @@ if calculate == True:
         new_price = S * (1 + scen / 100)
 
         # Calculate Call PnL
-        call_pnl = (max(new_price - K, 0) - Call_price)*100
+        call_pnl = (max(new_price - K, 0) - float(Call_price))*100
         # Calculate Put PnL
-        put_pnl = (max(K - new_price, 0) - Put_price)*100
+        put_pnl = (max(K - new_price, 0) - float(Put_price))*100
 
         # Set values in the DataFrame
         pnl_df.iloc[0, i] = new_price  # Underlying price
